@@ -805,14 +805,15 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
 
 ### Phase 5: Integration
 
-**Task 5.1: CLI entry point (`src/index.ts`)**
+**Task 5.1: CLI entry point (`src/index.ts`)** ✅ DONE
 - Wire all components together: config → fetch → cache check → plan → compile → cache set → executor → server
 - Dry-run mode: output plan JSON and exit
 - Shutdown handlers (SIGINT, SIGTERM)
 - Error handling with clear messages at each stage
 - Write ABOUTME comments
+- Unit tests in `test/unit/index.test.ts` (7 tests)
 
-**Task 5.2: Build configuration**
+**Task 5.2: Build configuration** ✅ DONE (completed as part of Task 1.1)
 - esbuild script in package.json (same as mcpblox, change entry point)
 - Add shebang for CLI: `#!/usr/bin/env node`
 - Verify: `npm run build` produces `dist/index.js`
