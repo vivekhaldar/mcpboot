@@ -828,13 +828,13 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
 
 ### Phase 6: Polish
 
-**Task 6.1: Error messages and edge cases**
-- No URLs in prompt → proceed without fetching (pure computation tools)
-- URL fetch failure → warn and continue with remaining URLs
-- All URL fetches fail → proceed with prompt-only content
-- LLM returns empty plan → clear error message
-- Generated handler has syntax errors → clear error during compilation
-- Empty prompt file → error
+**Task 6.1: Error messages and edge cases** ✅ DONE
+- No URLs in prompt → proceed without fetching (pure computation tools) ✅ (already worked, confirmed with tests)
+- URL fetch failure → warn and continue with remaining URLs ✅ (already worked via Promise.allSettled)
+- All URL fetches fail → proceed with prompt-only content ✅ (added warning log in index.ts, added test)
+- LLM returns empty plan → clear error message ✅ (already handled by planner validatePlan)
+- Generated handler has syntax errors → clear error during compilation ✅ (already handled by compiler validateCode)
+- Empty prompt file → error ✅ (added validation in config.ts for empty/whitespace-only prompts)
 
 **Task 6.2: README**
 - Installation instructions

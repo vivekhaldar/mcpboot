@@ -75,6 +75,10 @@ export function buildConfig(argv: string[]): Config | null {
     );
   }
 
+  if (!prompt.trim()) {
+    throw new Error("Error: Prompt is empty. Provide a non-empty generation prompt");
+  }
+
   // Validate API key: flag > env var
   let apiKey = opts.apiKey;
   if (!apiKey) {

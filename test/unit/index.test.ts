@@ -200,6 +200,15 @@ describe("main", () => {
     );
   });
 
+  it("throws on empty prompt from file", async () => {
+    const tmpFile = join(TEST_CACHE_DIR, "empty-prompt.txt");
+    mkdirSync(TEST_CACHE_DIR, { recursive: true });
+    writeFileSync(tmpFile, "   \n  ");
+    await expect(
+      main(cli("--prompt-file", tmpFile)),
+    ).rejects.toThrow(/empty/i);
+  });
+
   it("uses --no-cache to skip caching", async () => {
     setupMocks();
 

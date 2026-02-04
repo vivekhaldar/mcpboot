@@ -11,7 +11,7 @@ import { compilePlan } from "./engine/compiler.js";
 import { createExecutor } from "./engine/executor.js";
 import { createSandbox } from "./engine/sandbox.js";
 import { createExposedServer } from "./server.js";
-import { log, setVerbose, verbose } from "./log.js";
+import { log, warn, setVerbose, verbose } from "./log.js";
 import type { CompiledTools, FetchedContent, Whitelist } from "./types.js";
 
 function buildContentHash(contents: FetchedContent[]): string {
@@ -51,6 +51,12 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
   const contents = await fetchUrls(urls);
   log(`Fetched ${contents.length} page(s)`);
+
+  if (urls.length > 0 && contents.length === 0) {
+    warn(
+      "All URL fetches failed. Proceeding with prompt text only — generated tools may be less accurate",
+    );
+  }
 
   const whitelist = buildWhitelist(urls, contents);
   const whitelistDomains = [...whitelist.domains];

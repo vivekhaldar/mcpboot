@@ -320,6 +320,17 @@ describe("fetchUrls", () => {
     expect(await fetchUrls([])).toEqual([]);
   });
 
+  it("returns empty array when all fetches fail", async () => {
+    const mockFetch = vi.fn().mockRejectedValue(new Error("Network error"));
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await fetchUrls([
+      "https://fail1.example.com",
+      "https://fail2.example.com",
+    ]);
+    expect(result).toHaveLength(0);
+  });
+
   it("skips failed fetches and returns successful ones", async () => {
     let callCount = 0;
     const mockFetch = vi.fn().mockImplementation(() => {

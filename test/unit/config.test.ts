@@ -160,4 +160,49 @@ describe("buildConfig", () => {
     const config = buildConfig(cli("--help"));
     expect(config).toBeNull();
   });
+
+  it("throws when --prompt is empty string", () => {
+    // Commander treats empty string as missing option, so the error is about missing prompt
+    expect(() =>
+      buildConfig(cli("--prompt", "", "--api-key", "sk-test")),
+    ).toThrow(/prompt/i);
+  });
+
+  it("throws when --prompt is whitespace only", () => {
+    expect(() =>
+      buildConfig(cli("--prompt", "   ", "--api-key", "sk-test")),
+    ).toThrow(/empty/i);
+  });
+
+  it("throws when --prompt-file contains only whitespace", () => {
+    const fs = require("node:fs");
+    const os = require("node:os");
+    const path = require("node:path");
+    const tmpFile = path.join(os.tmpdir(), `mcpboot-test-empty-${Date.now()}.txt`);
+    fs.writeFileSync(tmpFile, "   \n  \n  ");
+    try {
+      expect(() =>
+        buildConfig(cli("--prompt-file", tmpFile, "--api-key", "sk-test")),
+      ).toThrow(/empty/i);
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  });
+
+  it("throws when both --prompt and --prompt-file are provided", () => {
+    const fs = require("node:fs");
+    const os = require("node:os");
+    const path = require("node:path");
+    const tmpFile = path.join(os.tmpdir(), `mcpboot-test-both-${Date.now()}.txt`);
+    fs.writeFileSync(tmpFile, "Some prompt");
+    try {
+      expect(() =>
+        buildConfig(
+          cli("--prompt", "inline", "--prompt-file", tmpFile, "--api-key", "sk-test"),
+        ),
+      ).toThrow(/exactly one/i);
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  });
 });
