@@ -819,7 +819,7 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
 - Verify: `npm run build` produces `dist/index.js`
 - Verify: `node dist/index.js --help` shows usage
 
-**Task 5.3: End-to-end integration test**
+**Task 5.3: End-to-end integration test** ✅ DONE
 - Test with Hacker News API prompt
 - Verify: plan is generated with reasonable tools
 - Verify: handlers compile and execute
