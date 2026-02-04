@@ -790,7 +790,7 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
 
 ### Phase 4: Cache
 
-**Task 4.1: Cache (`src/cache.ts`)**
+**Task 4.1: Cache (`src/cache.ts`)** ✅ DONE
 - Adapt from mcpblox's cache
 - Change cache key from `promptHash + schemaHash` to `promptHash + contentHash`
 - `hash(input: string): string` — SHA-256, first 16 hex chars (copy from mcpblox)
