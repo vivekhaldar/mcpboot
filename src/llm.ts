@@ -29,7 +29,7 @@ export function createLLMClient(config: LLMConfig): LLMClient {
         model,
         system,
         prompt: user,
-        maxTokens: 16384,
+        maxTokens: 8192,
         temperature: 0.2,
       });
       return result.text;
