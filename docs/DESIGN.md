@@ -766,7 +766,7 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
   - `validatePlan` with invalid tool name format → error
   - `buildUserPrompt` includes content and whitelist
 
-**Task 3.3: Compiler (`src/engine/compiler.ts`)**
+**Task 3.3: Compiler (`src/engine/compiler.ts`)** ✅ DONE
 - System prompt for handler code generation
 - `buildHandlerPrompt(prompt: string, tool: PlannedTool, contents: FetchedContent[]): string`
 - `compilePlan(llm: LLMClient, plan: GenerationPlan, contents: FetchedContent[]): Promise<CompiledTools>`
