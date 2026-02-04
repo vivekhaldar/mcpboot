@@ -707,7 +707,7 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
   - Port validation
   - --no-cache, --help
 
-**Task 2.3: URL Fetcher (`src/fetcher.ts`)**
+**Task 2.3: URL Fetcher (`src/fetcher.ts`)** ✅ DONE
 - `extractUrls(prompt: string): string[]` — regex extraction
 - `fetchUrl(url: string): Promise<FetchedContent>` — single URL fetch with timeout
 - `fetchUrls(urls: string[]): Promise<FetchResult>` — parallel fetch all URLs
