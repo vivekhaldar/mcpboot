@@ -677,7 +677,7 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
 - Install devDependencies: `typescript`, `tsx`, `esbuild`, `vitest`, `@types/node`
 - Verify: `npm run build` succeeds (empty index.ts), `npm test` runs (no tests yet)
 
-**Task 1.2: Copy shared modules from mcpblox**
+**Task 1.2: Copy shared modules from mcpblox** ✅ DONE
 - Copy `src/log.ts` → change prefix from `[mcpblox]` to `[mcpboot]`
 - Copy `src/llm.ts` → increase `maxTokens` to 16384
 - Copy `src/server.ts` → change server name to `"mcpboot"`
