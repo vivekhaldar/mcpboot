@@ -12,6 +12,7 @@ import { createExecutor } from "./engine/executor.js";
 import { createSandbox } from "./engine/sandbox.js";
 import { createExposedServer } from "./server.js";
 import { log, warn, setVerbose, verbose } from "./log.js";
+import { writeOwnUrl } from "./pipe.js";
 import type { CompiledTools, FetchedContent, Whitelist } from "./types.js";
 
 function buildContentHash(contents: FetchedContent[]): string {
@@ -125,6 +126,10 @@ export async function main(argv: string[] = process.argv): Promise<void> {
   log(`Listening on http://localhost:${port}/mcp`);
   log(`Serving ${executor.getExposedTools().length} tool(s)`);
 
+  if (config.pipe.stdoutIsPipe) {
+    writeOwnUrl(`http://localhost:${port}/mcp`);
+  }
+
   // Shutdown handlers
   const shutdown = async () => {
     log("Shutting down...");
@@ -134,6 +139,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
+  process.on("SIGPIPE", shutdown);
 }
 
 // Only auto-run when executed directly, not when imported by tests

@@ -55,6 +55,7 @@ describe("buildConfig", () => {
   it("parses minimal config with defaults", () => {
     const config = buildConfig(
       cli("--prompt", "Make tools", "--api-key", "sk-test"),
+      { stdoutIsPipe: false },
     );
     expect(config).not.toBeNull();
     expect(config!.llm.provider).toBe("anthropic");
@@ -159,6 +160,43 @@ describe("buildConfig", () => {
   it("returns null when --help is requested", () => {
     const config = buildConfig(cli("--help"));
     expect(config).toBeNull();
+  });
+
+  it("sets pipe.stdoutIsPipe from override", () => {
+    const config = buildConfig(
+      cli("--prompt", "test", "--api-key", "sk-test"),
+      { stdoutIsPipe: true },
+    );
+    expect(config).not.toBeNull();
+    expect(config!.pipe.stdoutIsPipe).toBe(true);
+  });
+
+  it("overrides port to 0 when stdout is piped and --port not explicit", () => {
+    const config = buildConfig(
+      cli("--prompt", "test", "--api-key", "sk-test"),
+      { stdoutIsPipe: true },
+    );
+    expect(config).not.toBeNull();
+    expect(config!.server.port).toBe(0);
+  });
+
+  it("keeps explicit --port even when stdout is piped", () => {
+    const config = buildConfig(
+      cli("--prompt", "test", "--api-key", "sk-test", "--port", "3000"),
+      { stdoutIsPipe: true },
+    );
+    expect(config).not.toBeNull();
+    expect(config!.server.port).toBe(3000);
+  });
+
+  it("defaults pipe.stdoutIsPipe to false when no override", () => {
+    const config = buildConfig(
+      cli("--prompt", "test", "--api-key", "sk-test"),
+      { stdoutIsPipe: false },
+    );
+    expect(config).not.toBeNull();
+    expect(config!.pipe.stdoutIsPipe).toBe(false);
+    expect(config!.server.port).toBe(8000);
   });
 
   it("throws when --prompt is empty string", () => {

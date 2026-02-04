@@ -18,11 +18,16 @@ export interface CacheConfig {
   dir: string;
 }
 
+export interface PipeConfig {
+  stdoutIsPipe: boolean;
+}
+
 export interface Config {
   prompt: string;
   llm: LLMConfig;
   server: ServerConfig;
   cache: CacheConfig;
+  pipe: PipeConfig;
   dryRun: boolean;
   verbose: boolean;
 }

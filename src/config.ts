@@ -3,9 +3,9 @@
 
 import { Command } from "commander";
 import { readFileSync, existsSync } from "node:fs";
-import type { Config } from "./types.js";
+import type { Config, PipeConfig } from "./types.js";
 
-export function buildConfig(argv: string[]): Config | null {
+export function buildConfig(argv: string[], pipeOverride?: PipeConfig): Config | null {
   const program = new Command()
     .name("mcpboot")
     .description(
@@ -94,8 +94,12 @@ export function buildConfig(argv: string[]): Config | null {
     );
   }
 
+  // Pipe detection
+  const pipe: PipeConfig = pipeOverride ?? { stdoutIsPipe: !process.stdout.isTTY };
+
   // Validate port
-  const port = parseInt(opts.port, 10);
+  const portExplicit = program.getOptionValueSource("port") === "cli";
+  const port = (!portExplicit && pipe.stdoutIsPipe) ? 0 : parseInt(opts.port, 10);
   if (isNaN(port) || port < 0 || port > 65535) {
     throw new Error(
       "Error: --port must be a valid integer between 0 and 65535",
@@ -116,6 +120,7 @@ export function buildConfig(argv: string[]): Config | null {
       enabled: opts.cache !== false,
       dir: opts.cacheDir ?? ".mcpboot-cache",
     },
+    pipe,
     dryRun: opts.dryRun ?? false,
     verbose: opts.verbose ?? false,
   };
