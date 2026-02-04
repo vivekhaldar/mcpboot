@@ -736,7 +736,7 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
 
 ### Phase 3: Engine
 
-**Task 3.1: Sandbox (`src/engine/sandbox.ts`)**
+**Task 3.1: Sandbox (`src/engine/sandbox.ts`)** ✅ DONE
 - `createSandbox(whitelistedFetch: typeof fetch): Sandbox`
 - `Sandbox.runHandler(code: string, args: Record<string, unknown>): Promise<ToolCallResult>`
 - vm context with: JSON, Math, String, Number, Boolean, Array, Object, Map, Set, Date, RegExp, Promise, URL, URLSearchParams, TextEncoder, TextDecoder, Headers, fetch (whitelisted), console.log
