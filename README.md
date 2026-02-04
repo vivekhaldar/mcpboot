@@ -69,6 +69,62 @@ mcpboot --prompt-file ./my-api-prompt.txt --port 9000
 mcpboot --prompt "Create MCP tools for https://github.com/HackerNews/API" --dry-run
 ```
 
+### Walkthrough: Hacker News API
+
+Here's a complete example of generating an MCP server for the [Hacker News API](https://github.com/HackerNews/API).
+
+**1. Start mcpboot:**
+
+```bash
+mcpboot --model claude-haiku-4-5 --port 8100 --verbose \
+  --prompt "Create MCP tools for the Hacker News API. The API docs are at
+    https://github.com/HackerNews/API . Figure out what tools are appropriate
+    to expose — things like getting top stories, new stories, getting an item
+    by ID, getting a user profile, etc."
+```
+
+mcpboot fetches the API docs from GitHub, uses the LLM to plan and compile 10 tools, and starts serving:
+
+```
+[mcpboot] Found 1 URL(s) in prompt
+[mcpboot] Fetching https://raw.githubusercontent.com/HackerNews/API/HEAD/README.md
+[mcpboot] Fetched 1 page(s)
+[mcpboot] Whitelist: github.com, firebase.google.com, hacker-news.firebaseio.com, ...
+[mcpboot] Cache miss — generating tools via LLM
+[mcpboot] Plan: 10 tool(s)
+[mcpboot] Compiling handler for tool: get_top_stories
+...
+[mcpboot] Compiled 10 handler(s)
+[mcpboot] Listening on http://localhost:8100/mcp
+[mcpboot] Serving 10 tool(s)
+```
+
+**2. Test with the MCP Inspector:**
+
+```bash
+npx @modelcontextprotocol/inspector --transport http --server-url http://localhost:8100/mcp
+```
+
+Or test from the CLI with [mcporter](https://github.com/steipete/mcporter):
+
+```bash
+# List all generated tools
+npx mcporter list http://localhost:8100/mcp --schema --allow-http
+
+# Get the top 5 stories (returns story IDs)
+npx mcporter call 'http://localhost:8100/mcp.get_top_stories' limit=5 --allow-http
+
+# Fetch details for a story
+npx mcporter call 'http://localhost:8100/mcp.get_item_by_id' item_id=42345678 --allow-http
+
+# Look up a user profile
+npx mcporter call 'http://localhost:8100/mcp.get_user_profile' username=dang --allow-http
+```
+
+**Generated tools:** `get_top_stories`, `get_new_stories`, `get_best_stories`, `get_ask_stories`, `get_show_stories`, `get_job_stories`, `get_item_by_id`, `get_user_profile`, `get_max_item_id`, `get_recent_changes`
+
+Subsequent runs with the same prompt skip the LLM entirely and start instantly from cache.
+
 ### Connecting from an MCP Host
 
 Once mcpboot is running, connect any MCP-compatible host to `http://localhost:8000/mcp`. For example, in Claude Desktop's config:
