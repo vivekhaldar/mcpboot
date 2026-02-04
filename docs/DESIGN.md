@@ -778,7 +778,7 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
   - `validateCode` with valid/invalid async function bodies
   - `buildHandlerPrompt` includes tool plan and relevant content
 
-**Task 3.4: Executor (`src/engine/executor.ts`)**
+**Task 3.4: Executor (`src/engine/executor.ts`)** ✅ DONE
 - `createExecutor(compiled: CompiledTools, sandbox: Sandbox): Executor`
 - `execute(toolName, args)` — look up tool, run handler in sandbox
 - `getExposedTools()` — return tool list for ListTools

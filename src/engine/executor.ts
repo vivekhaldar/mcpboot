@@ -1,7 +1,8 @@
 // ABOUTME: Routes tool calls to generated handlers running in the sandbox.
 // ABOUTME: Provides the Executor interface consumed by the MCP server.
 
-import type { ToolCallResult } from "../types.js";
+import type { CompiledTools, ToolCallResult } from "../types.js";
+import type { Sandbox } from "./sandbox.js";
 
 export interface Executor {
   execute(
@@ -13,4 +14,43 @@ export interface Executor {
     description: string;
     inputSchema: Record<string, unknown>;
   }>;
+}
+
+export function createExecutor(
+  compiled: CompiledTools,
+  sandbox: Sandbox,
+): Executor {
+  return {
+    async execute(
+      toolName: string,
+      args: Record<string, unknown>,
+    ): Promise<ToolCallResult> {
+      const tool = compiled.tools.get(toolName);
+      if (!tool) {
+        return {
+          content: [{ type: "text", text: `Unknown tool: ${toolName}` }],
+          isError: true,
+        };
+      }
+
+      try {
+        return await sandbox.runHandler(tool.handler_code, args);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : String(error);
+        return {
+          content: [{ type: "text", text: `Handler error: ${message}` }],
+          isError: true,
+        };
+      }
+    },
+
+    getExposedTools() {
+      return Array.from(compiled.tools.values()).map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.input_schema,
+      }));
+    },
+  };
 }
