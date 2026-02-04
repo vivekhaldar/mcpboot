@@ -25,14 +25,27 @@ export function createLLMClient(config: LLMConfig): LLMClient {
 
   return {
     async generate(system: string, user: string): Promise<string> {
-      const result = await generateText({
-        model,
-        system,
-        prompt: user,
-        maxTokens: 8192,
-        temperature: 0.2,
-      });
-      return result.text;
+      try {
+        const result = await generateText({
+          model,
+          system,
+          prompt: user,
+          maxTokens: 8192,
+          temperature: 0.2,
+        });
+        return result.text;
+      } catch (error: unknown) {
+        const err = error as Record<string, unknown>;
+        if (err.statusCode === 404) {
+          throw new Error(
+            `Model "${modelId}" not found. Check the model ID — ` +
+              `e.g. "claude-sonnet-4-20250514" or "claude-haiku-4-5" ` +
+              `(note: dated variants like "claude-haiku-4-5-20241022" don't exist; ` +
+              `use "claude-3-5-haiku-20241022" for the dated form)`,
+          );
+        }
+        throw error;
+      }
     },
   };
 }
