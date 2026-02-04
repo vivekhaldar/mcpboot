@@ -836,7 +836,7 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
 - Generated handler has syntax errors → clear error during compilation ✅ (already handled by compiler validateCode)
 - Empty prompt file → error ✅ (added validation in config.ts for empty/whitespace-only prompts)
 
-**Task 6.2: README**
+**Task 6.2: README** ✅ DONE
 - Installation instructions
 - Usage examples (same as PRD Section 10)
 - How it works (brief architecture description)
