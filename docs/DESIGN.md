@@ -687,23 +687,25 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
 
 ### Phase 2: New Components
 
-**Task 2.1: Types (`src/types.ts`)**
+**Task 2.1: Types (`src/types.ts`)** ✅ DONE
 - Define all interfaces: `Config`, `FetchedContent`, `Whitelist`, `GenerationPlan`, `PlannedTool`, `CompiledTools`, `CompiledTool`, `ToolCallResult`, `CacheEntry`, `LLMClient`
 - No runtime logic — just type definitions
 - Write ABOUTME comments
 
-**Task 2.2: Config (`src/config.ts`)**
+**Task 2.2: Config (`src/config.ts`)** ✅ DONE
 - Adapt from mcpblox's `config.ts`
 - Remove: `--upstream`, `--upstream-url`, `--upstream-token`, pipe config
 - Keep: `--prompt`, `--prompt-file`, `--provider`, `--model`, `--api-key`, `--port`, `--cache-dir`, `--no-cache`, `--verbose`, `--dry-run`
 - Require prompt (either `--prompt` or `--prompt-file`)
-- Write unit tests:
+- Write unit tests (14 tests in `test/unit/config.test.ts`):
   - Valid config with all flags
   - `--prompt-file` reads file content
   - Missing prompt → error
   - Invalid provider → error
-  - API key from env var
+  - API key from env var (both providers)
+  - Flag overrides env var
   - Port validation
+  - --no-cache, --help
 
 **Task 2.3: URL Fetcher (`src/fetcher.ts`)**
 - `extractUrls(prompt: string): string[]` — regex extraction
