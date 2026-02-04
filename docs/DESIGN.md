@@ -723,7 +723,7 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
   - Content truncation
 - Write integration test: fetch a real URL (use a stable public page)
 
-**Task 2.4: Whitelist (`src/whitelist.ts`)**
+**Task 2.4: Whitelist (`src/whitelist.ts`)** ✅ DONE
 - `buildWhitelist(promptUrls: string[], contents: FetchedContent[]): Whitelist`
 - `Whitelist.allows(url: string): boolean` — domain matching with subdomain support
 - `createWhitelistedFetch(whitelist: Whitelist): typeof fetch` — proxied fetch
