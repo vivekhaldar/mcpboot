@@ -751,7 +751,7 @@ Tasks are ordered for sequential implementation. Each task produces a working, t
   - Timeout enforcement
   - Handler that returns invalid shape → error
 
-**Task 3.2: Planner (`src/engine/planner.ts`)**
+**Task 3.2: Planner (`src/engine/planner.ts`)** ✅ DONE
 - System prompt for tool generation planning
 - `buildUserPrompt(prompt: string, contents: FetchedContent[], whitelist: Whitelist): string`
 - `validatePlan(plan: GenerationPlan): void`
