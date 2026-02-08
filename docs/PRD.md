@@ -365,7 +365,8 @@ Options:
   --port <number>              HTTP server port (default: 8000)
   --cache-dir <path>           Cache directory (default: .mcpboot-cache)
   --no-cache                   Disable caching, regenerate on every startup
-  --verbose                    Verbose logging
+  --verbose                    Verbose logging (structured JSON to stderr)
+  --log-file <path>            Write full verbose log to file (JSON lines, untruncated)
 
   --dry-run                    Generate and display the generation plan without starting the server
 ```

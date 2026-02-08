@@ -42,7 +42,8 @@ Options:
   --port <number>              HTTP server port (default: 8000)
   --cache-dir <path>           Cache directory (default: .mcpboot-cache)
   --no-cache                   Disable caching, regenerate on every startup
-  --verbose                    Verbose logging
+  --verbose                    Verbose logging (structured JSON to stderr)
+  --log-file <path>            Write full verbose log to file (JSON lines, untruncated)
   --dry-run                    Show generation plan without starting server
 ```
 
@@ -87,17 +88,22 @@ mcpboot fetches the API docs from GitHub, uses the LLM to plan and compile 10 to
 
 ```
 [mcpboot] Found 1 URL(s) in prompt
-[mcpboot] Fetching https://raw.githubusercontent.com/HackerNews/API/HEAD/README.md
 [mcpboot] Fetched 1 page(s)
-[mcpboot] Whitelist: github.com, firebase.google.com, hacker-news.firebaseio.com, ...
 [mcpboot] Cache miss — generating tools via LLM
 [mcpboot] Plan: 10 tool(s)
-[mcpboot] Compiling handler for tool: get_top_stories
-...
 [mcpboot] Compiled 10 handler(s)
 [mcpboot] Listening on http://localhost:8100/mcp
 [mcpboot] Serving 10 tool(s)
 ```
+
+With `--verbose`, each step also emits structured JSON events to stderr — one JSON object per line — with timestamps, request correlation IDs, and detailed payloads:
+
+```json
+{"ts":"...","event":"llm_call_start","req_id":"startup","call_id":1,"provider":"anthropic","model":"claude-haiku-4-5",...}
+{"ts":"...","event":"llm_call_end","req_id":"startup","call_id":1,"elapsed_ms":2100,"prompt_tokens":1240,"completion_tokens":892,...}
+```
+
+Use `--log-file mcpboot.log` to capture the full untruncated output (stderr truncates long strings to 500 chars).
 
 **2. Test with the MCP Inspector:**
 

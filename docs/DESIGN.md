@@ -253,7 +253,8 @@ Optional:
   --port <number>              HTTP server port (default: 8000)
   --cache-dir <path>           Cache directory (default: .mcpboot-cache)
   --no-cache                   Disable caching
-  --verbose                    Verbose logging
+  --verbose                    Verbose logging (structured JSON to stderr)
+  --log-file <path>            Write full verbose log to file (JSON lines, untruncated)
   --dry-run                    Show generation plan without starting server
 ```
 
@@ -505,7 +506,14 @@ Sort by URL for determinism. Join with a separator. Hash the result.
 
 ### 3.9 Logging (`src/log.ts`)
 
-**Copy from mcpblox, change prefix** from `[mcpblox]` to `[mcpboot]`.
+Structured JSON logging system. Key features:
+
+- **`logEvent(event, data)`** — Emits a one-line JSON object with `ts`, `event`, optional `req_id`, and event-specific fields.
+- **Structured events** — Typed event names: `llm_call_start/end/error`, `fetch_start/end/error`, `plan_start/end`, `compile_tool_start/end`, `executor_start/end/error`, `mcp_call_tool_start/end`, `session_summary`, etc.
+- **Request correlation** — All events include a `req_id`: `"startup"` during plan/compile, random hex per incoming MCP request at runtime.
+- **Truncation** — String values over 500 chars are truncated in stderr output. The `--log-file` path receives full untruncated JSON lines.
+- **Stats tracking** — Token usage, timing, and call counts are accumulated across LLM calls, URL fetches, and sandbox executions. A `session_summary` event is emitted at shutdown.
+- **`log()` / `warn()`** — Human-readable status messages always go to stderr with `[mcpboot]` prefix.
 
 ### 3.10 CLI Entry Point (`src/index.ts`)
 
