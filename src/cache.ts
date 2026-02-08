@@ -16,7 +16,7 @@ import type {
   CompiledTools,
   CompiledTool,
 } from "./types.js";
-import { warn, verbose } from "./log.js";
+import { warn, logEvent } from "./log.js";
 
 export interface Cache {
   get(promptHash: string, contentHash: string): CacheEntry | null;
@@ -72,7 +72,7 @@ export function createCache(config: CacheConfig): Cache {
       const filepath = join(config.dir, cacheFilename(promptHash, contentHash));
       if (!existsSync(filepath)) return null;
 
-      verbose(`Cache lookup: ${filepath}`);
+      logEvent("cache_lookup", { filepath });
       try {
         const raw = readFileSync(filepath, "utf-8");
         const parsed = JSON.parse(raw) as CacheEntry;
@@ -86,7 +86,7 @@ export function createCache(config: CacheConfig): Cache {
           unlinkSync(filepath);
           return null;
         }
-        verbose(`Cache hit: ${filepath} (created ${parsed.createdAt})`);
+        logEvent("cache_hit", { filepath, created_at: parsed.createdAt });
         return parsed;
       } catch {
         warn(`Failed to read cache file ${filepath}, removing`);
@@ -108,7 +108,7 @@ export function createCache(config: CacheConfig): Cache {
         cacheFilename(entry.promptHash, entry.contentHash),
       );
       writeFileSync(filepath, JSON.stringify(entry, null, 2));
-      verbose(`Cache written: ${filepath}`);
+      logEvent("cache_written", { filepath });
     },
   };
 }

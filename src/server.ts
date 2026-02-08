@@ -8,9 +8,10 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import http from "node:http";
+import { randomBytes } from "node:crypto";
 import type { ServerConfig } from "./types.js";
 import type { Executor } from "./engine/executor.js";
-import { warn } from "./log.js";
+import { warn, logEvent, setRequestId } from "./log.js";
 
 export type { Executor };
 
@@ -40,6 +41,11 @@ export function createExposedServer(
   executor: Executor,
 ): ExposedServer {
   const httpServer = http.createServer(async (req, res) => {
+    const reqId = randomBytes(6).toString("hex");
+    setRequestId(reqId);
+
+    logEvent("http_request", { method: req.method, url: req.url });
+
     if (req.method === "POST" && req.url === "/mcp") {
       const mcpServer = new Server(
         { name: "mcpboot", version: "0.1.0" },
@@ -48,6 +54,7 @@ export function createExposedServer(
 
       mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
         const tools = executor.getExposedTools();
+        logEvent("mcp_list_tools", { tool_count: tools.length });
         return {
           tools: tools.map((t) => ({
             name: t.name,
@@ -59,7 +66,20 @@ export function createExposedServer(
 
       mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
-        return executor.execute(name, (args ?? {}) as Record<string, unknown>);
+        logEvent("mcp_call_tool_start", {
+          tool_name: name,
+          args: args ?? {},
+        });
+        const start = performance.now();
+        const result = await executor.execute(name, (args ?? {}) as Record<string, unknown>);
+        const elapsed_ms = Math.round(performance.now() - start);
+        logEvent("mcp_call_tool_end", {
+          tool_name: name,
+          result,
+          elapsed_ms,
+          is_error: result.isError ?? false,
+        });
+        return result;
       });
 
       const transport = new StreamableHTTPServerTransport({
@@ -68,9 +88,11 @@ export function createExposedServer(
 
       try {
         const body = await readBody(req);
+        logEvent("mcp_request_body", { body });
         await mcpServer.connect(transport);
         await transport.handleRequest(req, res, body);
         res.on("close", () => {
+          setRequestId(undefined);
           transport.close();
           mcpServer.close();
         });
@@ -90,6 +112,9 @@ export function createExposedServer(
         }
       }
     } else if (req.method === "GET" && req.url === "/health") {
+      logEvent("health_check", {
+        tool_count: executor.getExposedTools().length,
+      });
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -98,9 +123,12 @@ export function createExposedServer(
         }),
       );
     } else {
+      logEvent("unknown_route", { method: req.method, url: req.url });
       res.writeHead(404);
       res.end("Not found");
     }
+
+    setRequestId(undefined);
   });
 
   return {

@@ -1,13 +1,14 @@
 // ABOUTME: Unit tests for domain whitelist construction and enforcement.
 // ABOUTME: Tests domain extraction, subdomain matching, and whitelisted fetch proxy.
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   extractDomain,
   buildWhitelist,
   createWhitelistedFetch,
 } from "../../src/whitelist.js";
 import type { FetchedContent } from "../../src/types.js";
+import { setVerbose, setRequestId } from "../../src/log.js";
 
 describe("extractDomain", () => {
   it("extracts domain from a simple URL", () => {
@@ -160,5 +161,88 @@ describe("createWhitelistedFetch", () => {
 
     await wlFetch("https://api.example.com/v1");
     expect(mockFetch).toHaveBeenCalledWith("https://api.example.com/v1");
+  });
+
+  describe("sandbox fetch logging", () => {
+    let errorSpy: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      setVerbose(true);
+      setRequestId("req-test-123");
+    });
+
+    afterEach(() => {
+      errorSpy.mockRestore();
+      setVerbose(false);
+      setRequestId(undefined);
+    });
+
+    it("emits sandbox_fetch_start and sandbox_fetch_end events on success", async () => {
+      const wl = buildWhitelist(["https://api.example.com"], []);
+      const mockFetch = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
+      const wlFetch = createWhitelistedFetch(wl, mockFetch);
+
+      await wlFetch("https://api.example.com/v1/items?id=42");
+
+      const events = errorSpy.mock.calls
+        .map((c) => JSON.parse(c[0] as string))
+        .filter((e: Record<string, unknown>) =>
+          (e.event as string).startsWith("sandbox_fetch"),
+        );
+
+      expect(events).toHaveLength(2);
+
+      const start = events[0];
+      expect(start.event).toBe("sandbox_fetch_start");
+      expect(start.url).toBe("https://api.example.com/v1/items?id=42");
+      expect(start.domain).toBe("api.example.com");
+      expect(start.req_id).toBe("req-test-123");
+
+      const end = events[1];
+      expect(end.event).toBe("sandbox_fetch_end");
+      expect(end.url).toBe("https://api.example.com/v1/items?id=42");
+      expect(end.status).toBe(200);
+      expect(end.elapsed_ms).toBeTypeOf("number");
+      expect(end.req_id).toBe("req-test-123");
+    });
+
+    it("emits sandbox_fetch_error event on network failure", async () => {
+      const wl = buildWhitelist(["https://api.example.com"], []);
+      const mockFetch = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+      const wlFetch = createWhitelistedFetch(wl, mockFetch);
+
+      await expect(wlFetch("https://api.example.com/v1")).rejects.toThrow("ECONNREFUSED");
+
+      const events = errorSpy.mock.calls
+        .map((c) => JSON.parse(c[0] as string))
+        .filter((e: Record<string, unknown>) =>
+          (e.event as string).startsWith("sandbox_fetch"),
+        );
+
+      expect(events).toHaveLength(2);
+      expect(events[0].event).toBe("sandbox_fetch_start");
+      expect(events[1].event).toBe("sandbox_fetch_error");
+      expect(events[1].error).toContain("ECONNREFUSED");
+      expect(events[1].elapsed_ms).toBeTypeOf("number");
+    });
+
+    it("does not emit fetch events for blocked domains", async () => {
+      const wl = buildWhitelist(["https://example.com"], []);
+      const mockFetch = vi.fn();
+      const wlFetch = createWhitelistedFetch(wl, mockFetch);
+
+      await expect(wlFetch("https://evil.com/steal")).rejects.toThrow();
+
+      const events = errorSpy.mock.calls
+        .map((c) => {
+          try { return JSON.parse(c[0] as string); } catch { return null; }
+        })
+        .filter((e): e is Record<string, unknown> =>
+          e !== null && typeof e.event === "string" && (e.event as string).startsWith("sandbox_fetch"),
+        );
+
+      expect(events).toHaveLength(0);
+    });
   });
 });

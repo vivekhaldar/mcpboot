@@ -2,6 +2,7 @@
 // ABOUTME: Gates fetch calls to only whitelisted domains discovered from prompt URLs and fetched content.
 
 import type { FetchedContent, Whitelist } from "./types.js";
+import { logEvent } from "./log.js";
 
 /**
  * Extract the hostname from a URL string. Returns null for invalid URLs.
@@ -69,7 +70,7 @@ export function createWhitelistedFetch(
   whitelist: Whitelist,
   realFetch: (url: string) => Promise<Response> = globalThis.fetch,
 ): (url: string) => Promise<Response> {
-  return (url: string): Promise<Response> => {
+  return async (url: string): Promise<Response> => {
     const hostname = extractDomain(url);
     if (!hostname) {
       return Promise.reject(
@@ -83,6 +84,30 @@ export function createWhitelistedFetch(
         ),
       );
     }
-    return realFetch(url);
+
+    logEvent("sandbox_fetch_start", { url, domain: hostname });
+    const start = performance.now();
+
+    try {
+      const response = await realFetch(url);
+      const elapsed_ms = Math.round(performance.now() - start);
+      logEvent("sandbox_fetch_end", {
+        url,
+        domain: hostname,
+        status: response.status,
+        elapsed_ms,
+      });
+      return response;
+    } catch (error) {
+      const elapsed_ms = Math.round(performance.now() - start);
+      const message = error instanceof Error ? error.message : String(error);
+      logEvent("sandbox_fetch_error", {
+        url,
+        domain: hostname,
+        error: message,
+        elapsed_ms,
+      });
+      throw error;
+    }
   };
 }

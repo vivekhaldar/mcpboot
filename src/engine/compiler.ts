@@ -9,7 +9,7 @@ import type {
   CompiledTool,
   CompiledTools,
 } from "../types.js";
-import { warn, verbose } from "../log.js";
+import { warn, logEvent } from "../log.js";
 
 const SYSTEM_PROMPT_NETWORK = `You are a JavaScript code generator for MCP tool handlers. You write async function BODIES (not full function declarations) that:
 
@@ -124,8 +124,13 @@ export async function compilePlan(
 ): Promise<CompiledTools> {
   const tools = new Map<string, CompiledTool>();
 
+  logEvent("compile_start", { tool_count: plan.tools.length });
+
   for (const plannedTool of plan.tools) {
-    verbose(`Compiling handler for tool: ${plannedTool.name}`);
+    logEvent("compile_tool_start", {
+      tool_name: plannedTool.name,
+      needs_network: plannedTool.needs_network,
+    });
 
     const systemPrompt = plannedTool.needs_network
       ? SYSTEM_PROMPT_NETWORK
@@ -135,6 +140,13 @@ export async function compilePlan(
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        logEvent("compile_tool_retry", {
+          tool_name: plannedTool.name,
+          attempt: attempt + 1,
+        });
+      }
+
       let response: string;
       try {
         response = await llm.generate(systemPrompt, userPrompt);
@@ -145,6 +157,12 @@ export async function compilePlan(
           `LLM error while compiling "${plannedTool.name}": ${message}`,
         );
       }
+
+      logEvent("compile_tool_llm_response", {
+        tool_name: plannedTool.name,
+        response,
+        attempt: attempt + 1,
+      });
 
       const code = extractCode(response);
 
@@ -172,7 +190,11 @@ export async function compilePlan(
         needs_network: plannedTool.needs_network,
       });
 
-      verbose(`Compiled handler for "${plannedTool.name}" (${code.length} chars)`);
+      logEvent("compile_tool_end", {
+        tool_name: plannedTool.name,
+        code_length: code.length,
+        handler_code: code,
+      });
       break;
     }
   }
