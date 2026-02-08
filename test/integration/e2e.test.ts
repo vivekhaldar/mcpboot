@@ -22,18 +22,35 @@ import type {
 
 const TEST_CACHE_DIR = join(import.meta.dirname, ".test-e2e-cache");
 
-// Realistic HN API plan that a real LLM would produce
+// Realistic HN API plan that a real LLM would produce, with rich descriptions
+// for downstream LLM consumption (UI generation, tool-call planning, etc.)
 const HN_PLAN: GenerationPlan = {
   tools: [
     {
       name: "get_top_stories",
-      description: "Get the IDs of the current top stories on Hacker News",
+      description:
+        "Retrieves the IDs of the current top-ranked stories on Hacker News, sorted by ranking.\n\n" +
+        "Use this tool to discover which stories are currently trending on Hacker News. " +
+        "Pass the returned IDs to get_item to fetch full story details (title, URL, score, etc.).\n\n" +
+        "Response format:\n" +
+        "Returns a JSON array of numeric item IDs, ordered by current ranking. " +
+        "Example response:\n[37052586, 37## 051270, 37050466]\n\n" +
+        "Example usage:\n" +
+        '- Input: { "limit": 3 }\n' +
+        "- Returns the top 3 story IDs as a JSON array\n\n" +
+        "Errors:\n" +
+        "- Returns an error if the Hacker News API is unreachable.",
       input_schema: {
         type: "object",
         properties: {
           limit: {
             type: "number",
-            description: "Maximum number of story IDs to return (default 10)",
+            description:
+              "Maximum number of story IDs to return. The API provides up to 500 top stories; this parameter caps the result to the specified count.",
+            default: 10,
+            minimum: 1,
+            maximum: 500,
+            examples: [5, 10, 50],
           },
         },
         required: [],
@@ -48,11 +65,32 @@ const HN_PLAN: GenerationPlan = {
     {
       name: "get_item",
       description:
-        "Get details about a specific Hacker News item (story, comment, etc.)",
+        "Retrieves the full details of a specific Hacker News item (story, comment, job, poll, or pollopt) by its unique numeric ID.\n\n" +
+        "Use this tool when you have an item ID (e.g. from get_top_stories) and need its title, author, score, URL, or child comments. " +
+        "Each item type returns slightly different fields.\n\n" +
+        "Response format:\n" +
+        "Returns a JSON object with the item details. Stories include: id, type, by, title, url, score, time, descendants, kids. " +
+        "Comments include: id, type, by, text, parent, time, kids.\n" +
+        "Example response:\n" +
+        '{ "id": 8863, "type": "story", "by": "dhouston", "title": "My YC app: Dropbox", ' +
+        '"url": "http://www.getdropbox.com/u/2/screencast.html", "score": 111, "time": 1175714200, "descendants": 71 }\n\n' +
+        "Example usage:\n" +
+        '- Input: { "id": 8863 }\n' +
+        "- Returns the full item object for story 8863 including title, author, score, and URL\n\n" +
+        "Errors:\n" +
+        "- Returns null if the item ID does not exist.\n" +
+        "- Returns an error if the API is unreachable.",
       input_schema: {
         type: "object",
         properties: {
-          id: { type: "number", description: "The item ID" },
+          id: {
+            type: "number",
+            description:
+              "The unique numeric Hacker News item ID. Item IDs are positive integers assigned sequentially. " +
+              "Obtain item IDs from tools like get_top_stories.",
+            minimum: 1,
+            examples: [8863, 37052586],
+          },
         },
         required: ["id"],
       },
@@ -85,17 +123,35 @@ if (!res.ok) {
 const item = await res.json();
 return { content: [{ type: "text", text: JSON.stringify(item, null, 2) }] };`;
 
-// Pure computation plan (no network)
+// Pure computation plan (no network), with rich descriptions
 const CALC_PLAN: GenerationPlan = {
   tools: [
     {
       name: "add_numbers",
-      description: "Add two numbers together",
+      description:
+        "Adds two numbers together and returns their sum.\n\n" +
+        "Use this tool for addition operations. Accepts any numeric values including integers and floating-point numbers.\n\n" +
+        "Response format:\n" +
+        "Returns the numeric sum as a plain text string.\n" +
+        'Example response: "42"\n\n' +
+        "Example usage:\n" +
+        '- Input: { "a": 17, "b": 25 }\n' +
+        '- Returns: "42"\n\n' +
+        "Errors:\n" +
+        "- Returns an error if either parameter is not a valid number.",
       input_schema: {
         type: "object",
         properties: {
-          a: { type: "number", description: "First number" },
-          b: { type: "number", description: "Second number" },
+          a: {
+            type: "number",
+            description: "The first number to add.",
+            examples: [1, 17, 3.14],
+          },
+          b: {
+            type: "number",
+            description: "The second number to add.",
+            examples: [2, 25, 2.72],
+          },
         },
         required: ["a", "b"],
       },
@@ -105,12 +161,30 @@ const CALC_PLAN: GenerationPlan = {
     },
     {
       name: "multiply_numbers",
-      description: "Multiply two numbers together",
+      description:
+        "Multiplies two numbers together and returns their product.\n\n" +
+        "Use this tool for multiplication operations. Accepts any numeric values including integers and floating-point numbers.\n\n" +
+        "Response format:\n" +
+        "Returns the numeric product as a plain text string.\n" +
+        'Example response: "42"\n\n' +
+        "Example usage:\n" +
+        '- Input: { "a": 6, "b": 7 }\n' +
+        '- Returns: "42"\n\n' +
+        "Errors:\n" +
+        "- Returns an error if either parameter is not a valid number.",
       input_schema: {
         type: "object",
         properties: {
-          a: { type: "number", description: "First number" },
-          b: { type: "number", description: "Second number" },
+          a: {
+            type: "number",
+            description: "The first number to multiply.",
+            examples: [2, 6, 3.14],
+          },
+          b: {
+            type: "number",
+            description: "The second number to multiply.",
+            examples: [3, 7, 2.72],
+          },
         },
         required: ["a", "b"],
       },

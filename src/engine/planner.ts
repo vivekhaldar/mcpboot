@@ -14,6 +14,8 @@ const TOOL_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 const SYSTEM_PROMPT = `You are an MCP tool planner. You receive a natural language description of desired tools, optionally with API documentation content, and you produce a STRUCTURED PLAN (as JSON) describing the tools to generate.
 
+IMPORTANT: The tool descriptions and schemas you produce will be consumed by downstream AI/LLM systems to understand each tool's behavior, generate web UIs, and produce correct tool calls. Descriptions and schemas must therefore be thorough, self-contained, and richly annotated.
+
 OUTPUT FORMAT:
 Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
 
@@ -21,11 +23,16 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
   "tools": [
     {
       "name": "tool_name",
-      "description": "What the tool does",
+      "description": "A comprehensive, multi-paragraph description (see DESCRIPTION GUIDELINES below)",
       "input_schema": {
         "type": "object",
         "properties": {
-          "param_name": { "type": "string", "description": "Parameter description" }
+          "param_name": {
+            "type": "string",
+            "description": "Detailed parameter description including purpose, format, and constraints",
+            "default": "optional default value if applicable",
+            "examples": ["example_value_1", "example_value_2"]
+          }
         },
         "required": ["param_name"]
       },
@@ -34,6 +41,51 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
       "needs_network": true
     }
   ]
+}
+
+DESCRIPTION GUIDELINES:
+Each tool's "description" field must be a rich, self-contained documentation string. Include ALL of the following sections, separated by blank lines:
+
+1. SUMMARY: A clear one-sentence summary of what the tool does.
+2. DETAILS: When to use this tool, how it relates to other tools, any important behavioral notes or caveats.
+3. RESPONSE FORMAT: Describe the structure and fields of a successful response. Include a concrete JSON example.
+4. EXAMPLE: Show at least one realistic usage example with sample parameter values and a corresponding example response.
+5. ERRORS: List common error scenarios (e.g., invalid input, resource not found, rate limits).
+
+Example of a good description:
+
+"Retrieves the full details of a specific Hacker News item (story, comment, job, poll, or pollopt) by its unique numeric ID.\\n\\nUse this tool when you have an item ID (e.g. from get_top_stories) and need its title, author, score, URL, or child comments. Each item type returns slightly different fields.\\n\\nResponse format:\\nReturns a JSON object with the item details. Fields vary by type. Stories include: id, type, by, title, url, score, time, descendants, kids. Comments include: id, type, by, text, parent, time, kids.\\n\\nExample response:\\n{\\n  \\"id\\": 8863,\\n  \\"type\\": \\"story\\",\\n  \\"by\\": \\"dhouston\\",\\n  \\"title\\": \\"My YC app: Dropbox\\",\\n  \\"url\\": \\"http://www.getdropbox.com/u/2/screencast.html\\",\\n  \\"score\\": 111,\\n  \\"time\\": 1175714200,\\n  \\"descendants\\": 71\\n}\\n\\nExample usage:\\n- Input: { \\"id\\": 8863 }\\n- Returns the full item object for story 8863\\n\\nErrors:\\n- Returns an error if the item ID does not exist or the API is unreachable."
+
+INPUT SCHEMA GUIDELINES:
+Use the full power of JSON Schema to describe each parameter precisely:
+- Every property MUST have a "description" explaining its purpose, expected format, and constraints.
+- Use "default" to document the default value when a parameter is optional.
+- Use "examples" (array) to provide 2-3 realistic example values.
+- Use "minimum" / "maximum" for numeric bounds when applicable.
+- Use "enum" for parameters with a fixed set of allowed values.
+- Use "pattern" for string parameters with a specific format (e.g., date patterns).
+- Use "minLength" / "maxLength" for string length constraints when applicable.
+
+Example of a good input_schema:
+{
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "number",
+      "description": "Maximum number of story IDs to return. The API provides up to 500 stories; this parameter caps the result to the specified count.",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 500,
+      "examples": [5, 10, 50]
+    },
+    "id": {
+      "type": "number",
+      "description": "The unique numeric Hacker News item ID. Item IDs are positive integers assigned sequentially. Obtain item IDs from tools like get_top_stories or get_new_stories.",
+      "minimum": 1,
+      "examples": [8863, 37052586]
+    }
+  },
+  "required": ["id"]
 }
 
 RULES:
