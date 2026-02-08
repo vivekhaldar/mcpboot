@@ -3,7 +3,7 @@
 
 import type { CompiledTools, ToolCallResult } from "../types.js";
 import type { Sandbox } from "./sandbox.js";
-import { verbose, verboseBody, verboseTimer } from "../log.js";
+import { logEvent, trackSandbox } from "../log.js";
 
 export interface Executor {
   execute(
@@ -28,27 +28,37 @@ export function createExecutor(
     ): Promise<ToolCallResult> {
       const tool = compiled.tools.get(toolName);
       if (!tool) {
-        verbose(`Executor: unknown tool "${toolName}"`);
+        logEvent("executor_unknown_tool", { tool_name: toolName });
         return {
           content: [{ type: "text", text: `Unknown tool: ${toolName}` }],
           isError: true,
         };
       }
 
-      verbose(`Executor: running "${toolName}"`);
-      verboseBody(`Executor: args for "${toolName}"`, JSON.stringify(args, null, 2));
-      const done = verboseTimer(`Executor: "${toolName}" sandbox execution`);
+      logEvent("executor_start", { tool_name: toolName, args });
+      const start = performance.now();
 
       try {
         const result = await sandbox.runHandler(tool.handler_code, args);
-        done();
-        verboseBody(`Executor: result for "${toolName}"`, JSON.stringify(result, null, 2));
+        const elapsed_ms = Math.round(performance.now() - start);
+        trackSandbox(elapsed_ms);
+        logEvent("executor_end", {
+          tool_name: toolName,
+          result,
+          elapsed_ms,
+          is_error: false,
+        });
         return result;
       } catch (error) {
-        done();
+        const elapsed_ms = Math.round(performance.now() - start);
+        trackSandbox(elapsed_ms);
         const message =
           error instanceof Error ? error.message : String(error);
-        verbose(`Executor: handler error for "${toolName}": ${message}`);
+        logEvent("executor_error", {
+          tool_name: toolName,
+          error: message,
+          elapsed_ms,
+        });
         return {
           content: [{ type: "text", text: `Handler error: ${message}` }],
           isError: true,

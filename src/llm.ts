@@ -5,7 +5,7 @@ import { generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LLMClient, LLMConfig } from "./types.js";
-import { verbose, verboseBody, verboseTimer } from "./log.js";
+import { logEvent, trackLLM } from "./log.js";
 
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-4-20250514",
@@ -26,16 +26,23 @@ export function createLLMClient(config: LLMConfig): LLMClient {
     model = openai(modelId);
   }
 
-  verbose(`LLM client initialized: provider=${config.provider} model=${modelId}`);
+  logEvent("llm_init", { provider: config.provider, model: modelId });
 
   return {
     async generate(system: string, user: string): Promise<string> {
       const callId = ++callCount;
-      const done = verboseTimer(`LLM call #${callId} [${config.provider}/${modelId}]`);
 
-      verbose(`LLM call #${callId} — maxTokens=8192 temperature=0.2`);
-      verboseBody(`LLM call #${callId} — system prompt`, system);
-      verboseBody(`LLM call #${callId} — user prompt`, user);
+      logEvent("llm_call_start", {
+        call_id: callId,
+        provider: config.provider,
+        model: modelId,
+        max_tokens: 8192,
+        temperature: 0.2,
+        system_prompt: system,
+        user_prompt: user,
+      });
+
+      const start = performance.now();
 
       try {
         const result = await generateText({
@@ -46,20 +53,34 @@ export function createLLMClient(config: LLMConfig): LLMClient {
           temperature: 0.2,
         });
 
-        done();
-        verboseBody(`LLM call #${callId} — response`, result.text);
-        if (result.usage) {
-          verbose(
-            `LLM call #${callId} — usage: promptTokens=${result.usage.promptTokens} completionTokens=${result.usage.completionTokens} totalTokens=${(result.usage.promptTokens ?? 0) + (result.usage.completionTokens ?? 0)}`,
-          );
-        }
-        verbose(`LLM call #${callId} — finishReason=${result.finishReason}`);
+        const elapsed_ms = Math.round(performance.now() - start);
+        const prompt_tokens = result.usage?.promptTokens;
+        const completion_tokens = result.usage?.completionTokens;
+
+        trackLLM(elapsed_ms, prompt_tokens, completion_tokens);
+
+        logEvent("llm_call_end", {
+          call_id: callId,
+          elapsed_ms,
+          prompt_tokens,
+          completion_tokens,
+          total_tokens: (prompt_tokens ?? 0) + (completion_tokens ?? 0),
+          finish_reason: result.finishReason,
+          response: result.text,
+        });
 
         return result.text;
       } catch (error: unknown) {
-        done();
+        const elapsed_ms = Math.round(performance.now() - start);
         const err = error as Record<string, unknown>;
-        verbose(`LLM call #${callId} — ERROR: ${err.message ?? String(error)}`);
+
+        logEvent("llm_call_error", {
+          call_id: callId,
+          elapsed_ms,
+          error: err.message ?? String(error),
+          status_code: err.statusCode,
+        });
+
         if (err.statusCode === 404) {
           throw new Error(
             `Model "${modelId}" not found. Check the model ID — ` +

@@ -1,7 +1,7 @@
 // ABOUTME: Fetches URLs referenced in prompts and extracts usable text content.
 // ABOUTME: Handles HTML stripping, GitHub URL rewriting, URL discovery, and content truncation.
 
-import { warn, verbose, verboseTimer } from "./log.js";
+import { warn, logEvent, trackFetch } from "./log.js";
 import type { FetchedContent } from "./types.js";
 
 const URL_REGEX = /(https?:\/\/[^\s"'<>)\]]+)/g;
@@ -83,8 +83,13 @@ export function truncateContent(
 export async function fetchUrl(url: string): Promise<FetchedContent> {
   const fetchTarget = rewriteGitHubUrl(url) ?? url;
 
-  verbose(`Fetching ${fetchTarget}${fetchTarget !== url ? ` (rewritten from ${url})` : ""}`);
-  const done = verboseTimer(`Fetch ${fetchTarget}`);
+  logEvent("fetch_start", {
+    url,
+    target_url: fetchTarget,
+    rewritten: fetchTarget !== url,
+  });
+
+  const start = performance.now();
 
   const response = await fetch(fetchTarget, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -93,10 +98,16 @@ export async function fetchUrl(url: string): Promise<FetchedContent> {
     },
   });
 
-  done();
-  verbose(`Fetch ${fetchTarget} — status=${response.status} ${response.statusText}`);
-
   if (!response.ok) {
+    const elapsed_ms = Math.round(performance.now() - start);
+    trackFetch(elapsed_ms);
+    logEvent("fetch_error", {
+      url,
+      target_url: fetchTarget,
+      status: response.status,
+      status_text: response.statusText,
+      elapsed_ms,
+    });
     throw new Error(
       `Fetch failed for ${url}: ${response.status} ${response.statusText}`,
     );
@@ -107,12 +118,11 @@ export async function fetchUrl(url: string): Promise<FetchedContent> {
   const contentType = rawContentType.split(";")[0].trim();
 
   let text = await response.text();
-  verbose(`Fetch ${fetchTarget} — contentType=${contentType} rawLength=${text.length}`);
+  const rawLength = text.length;
 
   // Strip HTML if needed
   if (contentType === "text/html") {
     text = stripHtml(text);
-    verbose(`Fetch ${fetchTarget} — strippedHtmlLength=${text.length}`);
   }
 
   // Truncate
@@ -120,7 +130,20 @@ export async function fetchUrl(url: string): Promise<FetchedContent> {
 
   // Discover URLs in the content
   const discovered = discoverUrls(text);
-  verbose(`Fetch ${fetchTarget} — finalLength=${text.length} discoveredUrls=${discovered.length}`);
+
+  const elapsed_ms = Math.round(performance.now() - start);
+  trackFetch(elapsed_ms);
+
+  logEvent("fetch_end", {
+    url,
+    target_url: fetchTarget,
+    status: response.status,
+    content_type: contentType,
+    raw_length: rawLength,
+    final_length: text.length,
+    discovered_urls: discovered.length,
+    elapsed_ms,
+  });
 
   return {
     url,

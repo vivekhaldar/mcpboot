@@ -24,6 +24,7 @@ export function buildConfig(argv: string[], pipeOverride?: PipeConfig): Config |
     .option("--cache-dir <path>", "Cache directory", ".mcpboot-cache")
     .option("--no-cache", "Disable caching")
     .option("--verbose", "Verbose logging", false)
+    .option("--log-file <path>", "Write full verbose log to file (JSON lines)")
     .option(
       "--dry-run",
       "Show generation plan without starting server",
@@ -123,5 +124,6 @@ export function buildConfig(argv: string[], pipeOverride?: PipeConfig): Config |
     pipe,
     dryRun: opts.dryRun ?? false,
     verbose: opts.verbose ?? false,
+    logFile: opts.logFile,
   };
 }

@@ -11,7 +11,7 @@ import { compilePlan } from "./engine/compiler.js";
 import { createExecutor } from "./engine/executor.js";
 import { createSandbox } from "./engine/sandbox.js";
 import { createExposedServer } from "./server.js";
-import { log, warn, setVerbose, verbose } from "./log.js";
+import { log, warn, setVerbose, setLogFile, setRequestId, logEvent, logSummary } from "./log.js";
 import { writeOwnUrl } from "./pipe.js";
 import type { CompiledTools, FetchedContent, Whitelist } from "./types.js";
 
@@ -45,6 +45,20 @@ export async function main(argv: string[] = process.argv): Promise<void> {
   if (!config) return; // --help was shown
 
   setVerbose(config.verbose);
+  if (config.logFile) {
+    setLogFile(config.logFile);
+  }
+
+  // Set a session-level request ID for startup-phase events
+  setRequestId("startup");
+
+  logEvent("session_start", {
+    prompt_length: config.prompt.length,
+    provider: config.llm.provider,
+    model: config.llm.model,
+    cache_enabled: config.cache.enabled,
+    dry_run: config.dryRun,
+  });
 
   // 1. Extract and fetch URLs
   const urls = extractUrls(config.prompt);
@@ -61,7 +75,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
   const whitelist = buildWhitelist(urls, contents);
   const whitelistDomains = [...whitelist.domains];
-  verbose(`Whitelist: ${whitelistDomains.join(", ") || "(empty)"}`);
+  logEvent("whitelist_built", { domains: whitelistDomains });
 
   // 2. Check cache
   const cache = createCache(config.cache);
@@ -75,17 +89,20 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
   if (cached) {
     log("Cache hit — loading generated tools");
+    logEvent("cache_hit", { prompt_hash: promptHash, content_hash: contentHash });
     compiled = deserializeCompiled(cached);
     activeWhitelist = reconstructWhitelist(cached.whitelist_domains);
   } else {
     // 3. Generate plan
     log("Cache miss — generating tools via LLM");
+    logEvent("cache_miss", { prompt_hash: promptHash, content_hash: contentHash });
     const llm = createLLMClient(config.llm);
     const plan = await generatePlan(llm, config.prompt, contents, whitelist);
     log(`Plan: ${plan.tools.length} tool(s)`);
 
     if (config.dryRun) {
       console.log(JSON.stringify(plan, null, 2));
+      logSummary();
       return;
     }
 
@@ -113,8 +130,12 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     log(`${compiled.tools.size} cached tool(s) available`);
     const toolNames = Array.from(compiled.tools.keys());
     console.log(JSON.stringify({ cached: true, tools: toolNames }, null, 2));
+    logSummary();
     return;
   }
+
+  // Clear startup request ID before entering server phase
+  setRequestId(undefined);
 
   // 6. Start server
   const whitelistedFetch = createWhitelistedFetch(activeWhitelist);
@@ -126,6 +147,12 @@ export async function main(argv: string[] = process.argv): Promise<void> {
   log(`Listening on http://localhost:${port}/mcp`);
   log(`Serving ${executor.getExposedTools().length} tool(s)`);
 
+  logEvent("server_ready", {
+    port,
+    tool_count: executor.getExposedTools().length,
+    tool_names: executor.getExposedTools().map((t) => t.name),
+  });
+
   if (config.pipe.stdoutIsPipe) {
     writeOwnUrl(`http://localhost:${port}/mcp`);
   }
@@ -133,6 +160,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
   // Shutdown handlers
   const shutdown = async () => {
     log("Shutting down...");
+    logSummary();
     await server.stop();
     process.exit(0);
   };

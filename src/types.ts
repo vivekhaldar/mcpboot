@@ -30,6 +30,7 @@ export interface Config {
   pipe: PipeConfig;
   dryRun: boolean;
   verbose: boolean;
+  logFile?: string;
 }
 
 // ─── Fetched Content ───────────────────────────────────────
