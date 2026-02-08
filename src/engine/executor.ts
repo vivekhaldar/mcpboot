@@ -3,6 +3,7 @@
 
 import type { CompiledTools, ToolCallResult } from "../types.js";
 import type { Sandbox } from "./sandbox.js";
+import { verbose, verboseBody, verboseTimer } from "../log.js";
 
 export interface Executor {
   execute(
@@ -27,17 +28,27 @@ export function createExecutor(
     ): Promise<ToolCallResult> {
       const tool = compiled.tools.get(toolName);
       if (!tool) {
+        verbose(`Executor: unknown tool "${toolName}"`);
         return {
           content: [{ type: "text", text: `Unknown tool: ${toolName}` }],
           isError: true,
         };
       }
 
+      verbose(`Executor: running "${toolName}"`);
+      verboseBody(`Executor: args for "${toolName}"`, JSON.stringify(args, null, 2));
+      const done = verboseTimer(`Executor: "${toolName}" sandbox execution`);
+
       try {
-        return await sandbox.runHandler(tool.handler_code, args);
+        const result = await sandbox.runHandler(tool.handler_code, args);
+        done();
+        verboseBody(`Executor: result for "${toolName}"`, JSON.stringify(result, null, 2));
+        return result;
       } catch (error) {
+        done();
         const message =
           error instanceof Error ? error.message : String(error);
+        verbose(`Executor: handler error for "${toolName}": ${message}`);
         return {
           content: [{ type: "text", text: `Handler error: ${message}` }],
           isError: true,

@@ -1,7 +1,7 @@
 // ABOUTME: Fetches URLs referenced in prompts and extracts usable text content.
 // ABOUTME: Handles HTML stripping, GitHub URL rewriting, URL discovery, and content truncation.
 
-import { warn, verbose } from "./log.js";
+import { warn, verbose, verboseTimer } from "./log.js";
 import type { FetchedContent } from "./types.js";
 
 const URL_REGEX = /(https?:\/\/[^\s"'<>)\]]+)/g;
@@ -83,7 +83,8 @@ export function truncateContent(
 export async function fetchUrl(url: string): Promise<FetchedContent> {
   const fetchTarget = rewriteGitHubUrl(url) ?? url;
 
-  verbose(`Fetching ${fetchTarget}`);
+  verbose(`Fetching ${fetchTarget}${fetchTarget !== url ? ` (rewritten from ${url})` : ""}`);
+  const done = verboseTimer(`Fetch ${fetchTarget}`);
 
   const response = await fetch(fetchTarget, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -91,6 +92,9 @@ export async function fetchUrl(url: string): Promise<FetchedContent> {
       "User-Agent": "mcpboot/1.0",
     },
   });
+
+  done();
+  verbose(`Fetch ${fetchTarget} — status=${response.status} ${response.statusText}`);
 
   if (!response.ok) {
     throw new Error(
@@ -103,10 +107,12 @@ export async function fetchUrl(url: string): Promise<FetchedContent> {
   const contentType = rawContentType.split(";")[0].trim();
 
   let text = await response.text();
+  verbose(`Fetch ${fetchTarget} — contentType=${contentType} rawLength=${text.length}`);
 
   // Strip HTML if needed
   if (contentType === "text/html") {
     text = stripHtml(text);
+    verbose(`Fetch ${fetchTarget} — strippedHtmlLength=${text.length}`);
   }
 
   // Truncate
@@ -114,6 +120,7 @@ export async function fetchUrl(url: string): Promise<FetchedContent> {
 
   // Discover URLs in the content
   const discovered = discoverUrls(text);
+  verbose(`Fetch ${fetchTarget} — finalLength=${text.length} discoveredUrls=${discovered.length}`);
 
   return {
     url,

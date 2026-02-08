@@ -8,7 +8,7 @@ import type {
   GenerationPlan,
   PlannedTool,
 } from "../types.js";
-import { warn, verbose } from "../log.js";
+import { warn, verbose, verboseBody, verboseTimer } from "../log.js";
 
 const TOOL_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
 
@@ -164,15 +164,24 @@ export async function generatePlan(
   const userPrompt = buildUserPrompt(prompt, contents, whitelist);
   let lastError: Error | null = null;
 
+  verbose(`Planning: sending prompt with ${contents.length} fetched doc(s), whitelist=[${[...whitelist.domains].join(", ")}]`);
+
   for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) verbose(`Planning: retry attempt ${attempt + 1}`);
+    const done = verboseTimer(`Planning LLM call (attempt ${attempt + 1})`);
+
     let response: string;
     try {
       response = await llm.generate(SYSTEM_PROMPT, userPrompt);
     } catch (error: unknown) {
+      done();
       const message =
         error instanceof Error ? error.message : String(error);
       throw new Error(`LLM error during planning: ${message}`);
     }
+    done();
+
+    verboseBody("Planning: raw LLM response", response, 1000);
 
     const jsonText = extractJSON(response);
     let parsed: GenerationPlan;
@@ -213,6 +222,7 @@ export async function generatePlan(
       throw lastError;
     }
 
+    verbose(`Generated plan: ${parsed.tools.length} tool(s): [${parsed.tools.map((t) => t.name).join(", ")}]`);
     verbose(`Generated plan:\n${JSON.stringify(parsed, null, 2)}`);
     return parsed;
   }

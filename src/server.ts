@@ -10,7 +10,7 @@ import {
 import http from "node:http";
 import type { ServerConfig } from "./types.js";
 import type { Executor } from "./engine/executor.js";
-import { warn } from "./log.js";
+import { warn, verbose, verboseBody } from "./log.js";
 
 export type { Executor };
 
@@ -40,6 +40,8 @@ export function createExposedServer(
   executor: Executor,
 ): ExposedServer {
   const httpServer = http.createServer(async (req, res) => {
+    verbose(`HTTP ${req.method} ${req.url}`);
+
     if (req.method === "POST" && req.url === "/mcp") {
       const mcpServer = new Server(
         { name: "mcpboot", version: "0.1.0" },
@@ -48,6 +50,7 @@ export function createExposedServer(
 
       mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
         const tools = executor.getExposedTools();
+        verbose(`MCP ListTools → returning ${tools.length} tool(s)`);
         return {
           tools: tools.map((t) => ({
             name: t.name,
@@ -59,7 +62,11 @@ export function createExposedServer(
 
       mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
-        return executor.execute(name, (args ?? {}) as Record<string, unknown>);
+        verbose(`MCP CallTool → tool="${name}"`);
+        verboseBody(`MCP CallTool → args for "${name}"`, JSON.stringify(args ?? {}, null, 2));
+        const result = await executor.execute(name, (args ?? {}) as Record<string, unknown>);
+        verboseBody(`MCP CallTool → result for "${name}"`, JSON.stringify(result, null, 2));
+        return result;
       });
 
       const transport = new StreamableHTTPServerTransport({
@@ -68,6 +75,7 @@ export function createExposedServer(
 
       try {
         const body = await readBody(req);
+        verboseBody("MCP request body", JSON.stringify(body, null, 2));
         await mcpServer.connect(transport);
         await transport.handleRequest(req, res, body);
         res.on("close", () => {
@@ -90,6 +98,7 @@ export function createExposedServer(
         }
       }
     } else if (req.method === "GET" && req.url === "/health") {
+      verbose("Health check requested");
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -98,6 +107,7 @@ export function createExposedServer(
         }),
       );
     } else {
+      verbose(`Unknown route: ${req.method} ${req.url} → 404`);
       res.writeHead(404);
       res.end("Not found");
     }
