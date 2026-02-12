@@ -9,9 +9,13 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import http from "node:http";
 import { randomBytes } from "node:crypto";
-import type { ServerConfig } from "./types.js";
+import { createRequire } from "node:module";
+import type { ServerConfig, CompiledTools } from "./types.js";
 import type { Executor } from "./engine/executor.js";
 import { warn, logEvent, setRequestId } from "./log.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json");
 
 export type { Executor };
 
@@ -39,6 +43,7 @@ function readBody(req: http.IncomingMessage): Promise<unknown> {
 export function createExposedServer(
   config: ServerConfig,
   executor: Executor,
+  compiled: CompiledTools,
 ): ExposedServer {
   const httpServer = http.createServer(async (req, res) => {
     const reqId = randomBytes(6).toString("hex");
@@ -66,6 +71,19 @@ export function createExposedServer(
 
       mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
+
+        if (name === "_mcp_metadata") {
+          return {
+            content: [{ type: "text", text: JSON.stringify({
+              stage: "boot",
+              version: version,
+              upstream_url: null,
+              whitelist_domains: compiled.whitelist_domains,
+              tools: Array.from(compiled.tools.values()),
+            }) }],
+          };
+        }
+
         logEvent("mcp_call_tool_start", {
           tool_name: name,
           args: args ?? {},

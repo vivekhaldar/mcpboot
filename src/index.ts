@@ -141,7 +141,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
   const whitelistedFetch = createWhitelistedFetch(activeWhitelist);
   const sandbox = createSandbox(whitelistedFetch);
   const executor = createExecutor(compiled, sandbox);
-  const server = createExposedServer(config.server, executor);
+  const server = createExposedServer(config.server, executor, compiled);
 
   const port = await server.start();
   log(`Listening on http://localhost:${port}/mcp`);

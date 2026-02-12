@@ -424,7 +424,7 @@ describe("end-to-end: HN API tools", () => {
     };
 
     const executor = createExecutor(compiled, sandbox);
-    const server = createExposedServer({ port: 0 }, executor);
+    const server = createExposedServer({ port: 0 }, executor, compiled);
     const port = await server.start();
 
     try {
@@ -652,7 +652,7 @@ describe("end-to-end: health endpoint", () => {
     };
 
     const executor = createExecutor(compiled, sandbox);
-    const server = createExposedServer({ port: 0 }, executor);
+    const server = createExposedServer({ port: 0 }, executor, compiled);
     const port = await server.start();
 
     try {
